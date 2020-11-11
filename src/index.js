@@ -87,7 +87,7 @@ export default class VueRouter {
       assert(
         install.installed,
         `not installed. Make sure to call \`Vue.use(VueRouter)\` ` +
-          `before creating root instance.`
+        `before creating root instance.`
       )
 
     this.apps.push(app)
@@ -138,6 +138,7 @@ export default class VueRouter {
 
     history.listen(route => {
       this.apps.forEach(app => {
+        debugger
         app._route = route
       })
     })

@@ -2149,228 +2149,229 @@ function once (fn) {
 
 /*  */
 
-var History = function History (router, base) {
-  this.router = router;
-  this.base = normalizeBase(base);
-  // start with a route object that stands for "nowhere"
-  this.current = START;
-  this.pending = null;
-  this.ready = false;
-  this.readyCbs = [];
-  this.readyErrorCbs = [];
-  this.errorCbs = [];
-  this.listeners = [];
+var History = function History(router, base) {
+this.router = router;
+this.base = normalizeBase(base);
+// start with a route object that stands for "nowhere"
+this.current = START;
+this.pending = null;
+this.ready = false;
+this.readyCbs = [];
+this.readyErrorCbs = [];
+this.errorCbs = [];
+this.listeners = [];
 };
 
 History.prototype.listen = function listen (cb) {
-  this.cb = cb;
+this.cb = cb;
 };
 
 History.prototype.onReady = function onReady (cb, errorCb) {
-  if (this.ready) {
-    cb();
-  } else {
-    this.readyCbs.push(cb);
-    if (errorCb) {
-      this.readyErrorCbs.push(errorCb);
-    }
+if (this.ready) {
+  cb();
+} else {
+  this.readyCbs.push(cb);
+  if (errorCb) {
+    this.readyErrorCbs.push(errorCb);
   }
+}
 };
 
 History.prototype.onError = function onError (errorCb) {
-  this.errorCbs.push(errorCb);
+this.errorCbs.push(errorCb);
 };
 
 History.prototype.transitionTo = function transitionTo (
-  location,
-  onComplete,
-  onAbort
+location,
+onComplete ,
+onAbort 
 ) {
-    var this$1 = this;
+  var this$1 = this;
 
-  var route;
-  // catch redirect option https://github.com/vuejs/vue-router/issues/3201
-  try {
-    route = this.router.match(location, this.current);
-  } catch (e) {
-    this.errorCbs.forEach(function (cb) {
-      cb(e);
+var route;
+// catch redirect option https://github.com/vuejs/vue-router/issues/3201
+try {
+  route = this.router.match(location, this.current);
+} catch (e) {
+  this.errorCbs.forEach(function (cb) {
+    cb(e);
+  });
+  // Exception should still be thrown
+  throw e
+}
+var prev = this.current;
+this.confirmTransition(
+  route,
+  function () {
+    this$1.updateRoute(route);
+    onComplete && onComplete(route);
+    this$1.ensureURL();
+    this$1.router.afterHooks.forEach(function (hook) {
+      hook && hook(route, prev);
     });
-    // Exception should still be thrown
-    throw e
-  }
-  var prev = this.current;
-  this.confirmTransition(
-    route,
-    function () {
-      this$1.updateRoute(route);
-      onComplete && onComplete(route);
-      this$1.ensureURL();
-      this$1.router.afterHooks.forEach(function (hook) {
-        hook && hook(route, prev);
+
+    // fire ready cbs once
+    if (!this$1.ready) {
+      this$1.ready = true;
+      this$1.readyCbs.forEach(function (cb) {
+        cb(route);
       });
-
-      // fire ready cbs once
-      if (!this$1.ready) {
-        this$1.ready = true;
-        this$1.readyCbs.forEach(function (cb) {
-          cb(route);
-        });
-      }
-    },
-    function (err) {
-      if (onAbort) {
-        onAbort(err);
-      }
-      if (err && !this$1.ready) {
-        // Initial redirection should not mark the history as ready yet
-        // because it's triggered by the redirection instead
-        // https://github.com/vuejs/vue-router/issues/3225
-        // https://github.com/vuejs/vue-router/issues/3331
-        if (!isNavigationFailure(err, NavigationFailureType.redirected) || prev !== START) {
-          this$1.ready = true;
-          this$1.readyErrorCbs.forEach(function (cb) {
-            cb(err);
-          });
-        }
-      }
     }
-  );
-};
-
-History.prototype.confirmTransition = function confirmTransition (route, onComplete, onAbort) {
-    var this$1 = this;
-
-  var current = this.current;
-  this.pending = route;
-  var abort = function (err) {
-    // changed after adding errors with
-    // https://github.com/vuejs/vue-router/pull/3047 before that change,
-    // redirect and aborted navigation would produce an err == null
-    if (!isNavigationFailure(err) && isError(err)) {
-      if (this$1.errorCbs.length) {
-        this$1.errorCbs.forEach(function (cb) {
+  },
+  function (err) {
+    if (onAbort) {
+      onAbort(err);
+    }
+    if (err && !this$1.ready) {
+      // Initial redirection should not mark the history as ready yet
+      // because it's triggered by the redirection instead
+      // https://github.com/vuejs/vue-router/issues/3225
+      // https://github.com/vuejs/vue-router/issues/3331
+      if (!isNavigationFailure(err, NavigationFailureType.redirected) || prev !== START) {
+        this$1.ready = true;
+        this$1.readyErrorCbs.forEach(function (cb) {
           cb(err);
         });
-      } else {
-        warn(false, 'uncaught error during route navigation:');
-        console.error(err);
       }
     }
-    onAbort && onAbort(err);
-  };
-  var lastRouteIndex = route.matched.length - 1;
-  var lastCurrentIndex = current.matched.length - 1;
-  if (
-    isSameRoute(route, current) &&
-    // in the case the route map has been dynamically appended to
-    lastRouteIndex === lastCurrentIndex &&
-    route.matched[lastRouteIndex] === current.matched[lastCurrentIndex]
-  ) {
-    this.ensureURL();
-    return abort(createNavigationDuplicatedError(current, route))
   }
+);
+};
 
-  var ref = resolveQueue(
-    this.current.matched,
-    route.matched
-  );
-    var updated = ref.updated;
-    var deactivated = ref.deactivated;
-    var activated = ref.activated;
+History.prototype.confirmTransition = function confirmTransition (route, onComplete, onAbort ) {
+  var this$1 = this;
 
-  var queue = [].concat(
-    // in-component leave guards
-    extractLeaveGuards(deactivated),
-    // global before hooks
-    this.router.beforeHooks,
-    // in-component update hooks
-    extractUpdateHooks(updated),
-    // in-config enter guards
-    activated.map(function (m) { return m.beforeEnter; }),
-    // async components
-    resolveAsyncComponents(activated)
-  );
+var current = this.current;
+this.pending = route;
+debugger
+var abort = function (err) {
+  // changed after adding errors with
+  // https://github.com/vuejs/vue-router/pull/3047 before that change,
+  // redirect and aborted navigation would produce an err == null
+  if (!isNavigationFailure(err) && isError(err)) {
+    if (this$1.errorCbs.length) {
+      this$1.errorCbs.forEach(function (cb) {
+        cb(err);
+      });
+    } else {
+      warn(false, 'uncaught error during route navigation:');
+      console.error(err);
+    }
+  }
+  onAbort && onAbort(err);
+};
+var lastRouteIndex = route.matched.length - 1;
+var lastCurrentIndex = current.matched.length - 1;
+if (
+  isSameRoute(route, current) &&
+  // in the case the route map has been dynamically appended to
+  lastRouteIndex === lastCurrentIndex &&
+  route.matched[lastRouteIndex] === current.matched[lastCurrentIndex]
+) {
+  this.ensureURL();
+  return abort(createNavigationDuplicatedError(current, route))
+}
 
-  var iterator = function (hook, next) {
+var ref = resolveQueue(
+  this.current.matched,
+  route.matched
+);
+  var updated = ref.updated;
+  var deactivated = ref.deactivated;
+  var activated = ref.activated;
+
+var queue = [].concat(
+  // in-component leave guards
+  extractLeaveGuards(deactivated),
+  // global before hooks
+  this.router.beforeHooks,
+  // in-component update hooks
+  extractUpdateHooks(updated),
+  // in-config enter guards
+  activated.map(function (m) { return m.beforeEnter; }),
+  // async components
+  resolveAsyncComponents(activated)
+);
+
+var iterator = function (hook, next) {
+  if (this$1.pending !== route) {
+    return abort(createNavigationCancelledError(current, route))
+  }
+  try {
+    hook(route, current, function (to) {
+      if (to === false) {
+        // next(false) -> abort navigation, ensure current URL
+        this$1.ensureURL(true);
+        abort(createNavigationAbortedError(current, route));
+      } else if (isError(to)) {
+        this$1.ensureURL(true);
+        abort(to);
+      } else if (
+        typeof to === 'string' ||
+        (typeof to === 'object' &&
+          (typeof to.path === 'string' || typeof to.name === 'string'))
+      ) {
+        // next('/') or next({ path: '/' }) -> redirect
+        abort(createNavigationRedirectedError(current, route));
+        if (typeof to === 'object' && to.replace) {
+          this$1.replace(to);
+        } else {
+          this$1.push(to);
+        }
+      } else {
+        // confirm transition and pass on the value
+        next(to);
+      }
+    });
+  } catch (e) {
+    abort(e);
+  }
+};
+
+runQueue(queue, iterator, function () {
+  // wait until async components are resolved before
+  // extracting in-component enter guards
+  var enterGuards = extractEnterGuards(activated);
+  var queue = enterGuards.concat(this$1.router.resolveHooks);
+  runQueue(queue, iterator, function () {
     if (this$1.pending !== route) {
       return abort(createNavigationCancelledError(current, route))
     }
-    try {
-      hook(route, current, function (to) {
-        if (to === false) {
-          // next(false) -> abort navigation, ensure current URL
-          this$1.ensureURL(true);
-          abort(createNavigationAbortedError(current, route));
-        } else if (isError(to)) {
-          this$1.ensureURL(true);
-          abort(to);
-        } else if (
-          typeof to === 'string' ||
-          (typeof to === 'object' &&
-            (typeof to.path === 'string' || typeof to.name === 'string'))
-        ) {
-          // next('/') or next({ path: '/' }) -> redirect
-          abort(createNavigationRedirectedError(current, route));
-          if (typeof to === 'object' && to.replace) {
-            this$1.replace(to);
-          } else {
-            this$1.push(to);
-          }
-        } else {
-          // confirm transition and pass on the value
-          next(to);
-        }
+    this$1.pending = null;
+    onComplete(route);
+    if (this$1.router.app) {
+      this$1.router.app.$nextTick(function () {
+        handleRouteEntered(route);
       });
-    } catch (e) {
-      abort(e);
     }
-  };
-
-  runQueue(queue, iterator, function () {
-    // wait until async components are resolved before
-    // extracting in-component enter guards
-    var enterGuards = extractEnterGuards(activated);
-    var queue = enterGuards.concat(this$1.router.resolveHooks);
-    runQueue(queue, iterator, function () {
-      if (this$1.pending !== route) {
-        return abort(createNavigationCancelledError(current, route))
-      }
-      this$1.pending = null;
-      onComplete(route);
-      if (this$1.router.app) {
-        this$1.router.app.$nextTick(function () {
-          handleRouteEntered(route);
-        });
-      }
-    });
   });
+});
 };
 
 History.prototype.updateRoute = function updateRoute (route) {
-  this.current = route;
-  this.cb && this.cb(route);
+this.current = route;
+this.cb && this.cb(route);
 };
 
 History.prototype.setupListeners = function setupListeners () {
-  // Default implementation is empty
+// Default implementation is empty
 };
 
 History.prototype.teardown = function teardown () {
-  // clean up event listeners
-  // https://github.com/vuejs/vue-router/issues/2341
-  this.listeners.forEach(function (cleanupListener) {
-    cleanupListener();
-  });
-  this.listeners = [];
+// clean up event listeners
+// https://github.com/vuejs/vue-router/issues/2341
+this.listeners.forEach(function (cleanupListener) {
+  cleanupListener();
+});
+this.listeners = [];
 
-  // reset current history route
-  // https://github.com/vuejs/vue-router/issues/3294
-  this.current = START;
-  this.pending = null;
+// reset current history route
+// https://github.com/vuejs/vue-router/issues/3294
+this.current = START;
+this.pending = null;
 };
 
-function normalizeBase (base) {
+function normalizeBase(base) {
   if (!base) {
     if (inBrowser) {
       // respect <base> tag
@@ -2390,7 +2391,7 @@ function normalizeBase (base) {
   return base.replace(/\/$/, '')
 }
 
-function resolveQueue (
+function resolveQueue(
   current,
   next
 ) {
@@ -2408,7 +2409,7 @@ function resolveQueue (
   }
 }
 
-function extractGuards (
+function extractGuards(
   records,
   name,
   bind,
@@ -2425,7 +2426,7 @@ function extractGuards (
   return flatten(reverse ? guards.reverse() : guards)
 }
 
-function extractGuard (
+function extractGuard(
   def,
   key
 ) {
@@ -2436,23 +2437,23 @@ function extractGuard (
   return def.options[key]
 }
 
-function extractLeaveGuards (deactivated) {
+function extractLeaveGuards(deactivated) {
   return extractGuards(deactivated, 'beforeRouteLeave', bindGuard, true)
 }
 
-function extractUpdateHooks (updated) {
+function extractUpdateHooks(updated) {
   return extractGuards(updated, 'beforeRouteUpdate', bindGuard)
 }
 
-function bindGuard (guard, instance) {
+function bindGuard(guard, instance) {
   if (instance) {
-    return function boundRouteGuard () {
+    return function boundRouteGuard() {
       return guard.apply(instance, arguments)
     }
   }
 }
 
-function extractEnterGuards (
+function extractEnterGuards(
   activated
 ) {
   return extractGuards(
@@ -2464,12 +2465,12 @@ function extractEnterGuards (
   )
 }
 
-function bindEnterGuard (
+function bindEnterGuard(
   guard,
   match,
   key
 ) {
-  return function routeEnterGuard (to, from, next) {
+  return function routeEnterGuard(to, from, next) {
     return guard(to, from, function (cb) {
       if (typeof cb === 'function') {
         if (!match.enteredCbs[key]) {
@@ -2822,7 +2823,7 @@ var AbstractHistory = /*@__PURE__*/(function (History) {
 
 /*  */
 
-var VueRouter = function VueRouter (options) {
+var VueRouter = function VueRouter(options) {
   if ( options === void 0 ) options = {};
 
   this.app = null;
@@ -2878,7 +2879,7 @@ VueRouter.prototype.init = function init (app /* Vue component instance */) {
     assert(
       install.installed,
       "not installed. Make sure to call `Vue.use(VueRouter)` " +
-        "before creating root instance."
+      "before creating root instance."
     );
 
   this.apps.push(app);
@@ -2929,6 +2930,7 @@ VueRouter.prototype.init = function init (app /* Vue component instance */) {
 
   history.listen(function (route) {
     this$1.apps.forEach(function (app) {
+      debugger
       app._route = route;
     });
   });
@@ -3041,7 +3043,7 @@ VueRouter.prototype.addRoutes = function addRoutes (routes) {
 
 Object.defineProperties( VueRouter.prototype, prototypeAccessors );
 
-function registerHook (list, fn) {
+function registerHook(list, fn) {
   list.push(fn);
   return function () {
     var i = list.indexOf(fn);
@@ -3049,7 +3051,7 @@ function registerHook (list, fn) {
   }
 }
 
-function createHref (base, fullPath, mode) {
+function createHref(base, fullPath, mode) {
   var path = mode === 'hash' ? '#' + fullPath : fullPath;
   return base ? cleanPath(base + '/' + path) : path
 }
